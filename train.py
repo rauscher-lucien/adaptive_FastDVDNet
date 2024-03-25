@@ -54,14 +54,35 @@ class Trainer:
                    '%s/model_epoch%04d.pth' % (checkpoints_dir, epoch))
         
 
-    def load(self, checkpoints_dir, model, epoch, optimizer=[]):
+    def load(self, checkpoints_dir, model, epoch, optimizer=None, device='cpu'):
+        """
+        Load the model and optimizer states.
 
-        model_dict = torch.load('%s/model_epoch%04d.pth' % (checkpoints_dir, epoch))
+        :param dir_chck: Directory where checkpoint files are stored.
+        :param netG: The Generator model (or any PyTorch model).
+        :param epoch: Epoch number to load.
+        :param optimG: The optimizer for the Generator model.
+        :param device: The device ('cpu' or 'cuda') to load the model onto.
+        :return: The model, optimizer, and epoch, all appropriately loaded to the specified device.
+        """
 
-        print('Loaded %dth network' % epoch)
+        # Ensure optimG is not None; it's better to explicitly check rather than using a mutable default argument like []
+        if optimizer is None:
+            optimizer = torch.optim.Adam(model.parameters())  # Or whatever default you prefer
 
-        model.load_state_dict(model_dict['model'])
-        optimizer.load_state_dict(model_dict['optimizer'])
+        checkpoint_path = os.path.join(checkpoints_dir, f'model_epoch{epoch:04d}.pth')
+        dict_net = torch.load(checkpoint_path, map_location=device)
+
+        print(f'Loaded {epoch}th network')
+
+        model.load_state_dict(dict_net['model'])
+        # Ensure the optimizer state is also loaded to the correct device
+        optimizer.load_state_dict(dict_net['optimizer'])
+
+        # If the model and optimizer are expected to be used on a GPU, explicitly move them after loading.
+        model.to(device)
+        # Note: Optimizers will automatically move their tensors to the device of the parameters they optimize.
+        # So, as long as the model parameters are correctly placed, the optimizer's tensors will be as well.
 
         return model, optimizer, epoch
     
@@ -104,24 +125,25 @@ class Trainer:
 
         ### initialize network ###
 
-        adaptive_model = AdaptiveFastDVDnet()
+        adaptive_model = AdaptiveFastDVDnet().to(self.device)
 
-        criterion = nn.MSELoss(reduction='sum')
+        criterion = nn.MSELoss(reduction='sum').to(self.device)
 
         optimizer = torch.optim.Adam(adaptive_model.parameters(), self.lr)
 
         st_epoch = 0
         if self.train_continue == 'on':
             print(self.checkpoints_dir)
-            adaptive_model, optimizer, st_epoch = self.load(self.checkpoints_dir, adaptive_model, self.load_epoch, optimizer)
+            adaptive_model, optimizer, st_epoch = self.load(self.checkpoints_dir, adaptive_model, self.load_epoch, optimizer, self.device)
 
+        
         ### initialize prior
             
-        prior_model = PriorUNet()
+        prior_model = PriorUNet().to(self.device)
 
         prior_optimizer = torch.optim.Adam(prior_model.parameters(), self.lr)
 
-        prior_model, _, _ = self.load(self.prior_checkpoints_dir, prior_model, self.prior_load_epoch, prior_optimizer)
+        prior_model, _, _ = self.load(self.prior_checkpoints_dir, prior_model, self.prior_load_epoch, prior_optimizer, self.device)
 
 
         for epoch in range(st_epoch + 1, self.num_epoch + 1):
@@ -137,6 +159,9 @@ class Trainer:
                 optimizer.zero_grad()
 
                 input_stack, target_img = data
+
+                input_stack = input_stack.to(self.device)
+                target_img = target_img.to(self.device)
 
                 prior = prior_model(input_stack)
 

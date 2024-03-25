@@ -59,6 +59,8 @@ def main():
                             help='Flag to continue training: "on" or "off" (default: "off")')
         parser.add_argument('--load_epoch', type=int, default=1, 
                             help='Epoch number from which to continue training (default: 1)')
+        parser.add_argument('--prior_load_epoch', type=int, default=1, 
+                            help='Epoch number from which to load the prior (default: 1)')
     
 
         # Parse arguments
@@ -69,6 +71,7 @@ def main():
         project_name = args.project_name 
         train_continue = args.train_continue
         load_epoch = args.load_epoch
+        prior_load_epoch = args.prior_load_epoch
         project_dir = os.path.join('/g', 'prevedel', 'members', 'Rauscher', 'projects', 'adaptive_FastDVDNet')
 
         print(f"Using data directory: {data_dir}")
@@ -82,7 +85,7 @@ def main():
         project_name = 'only_two_dataset-test_1'
         train_continue = 'on'
         load_epoch = 140
-        prior_load_epoch = 120
+        prior_load_epoch = 300
 
 
     data_dict = {}
