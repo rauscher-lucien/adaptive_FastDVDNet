@@ -100,9 +100,9 @@ class PriorTrainer:
 
         ### initialize network ###
 
-        model = NewUNet()
+        model = NewUNet().to(self.device)
 
-        criterion = nn.MSELoss(reduction='sum')
+        criterion = nn.MSELoss(reduction='sum').to(self.device)
 
         optimizer = torch.optim.Adam(model.parameters(), self.lr)
 
@@ -111,6 +111,8 @@ class PriorTrainer:
             print(self.checkpoints_dir)
             model, optimizer, st_epoch = self.load(self.checkpoints_dir, model, self.load_epoch, optimizer)
 
+            model = model.to(self.device)
+
         for epoch in range(st_epoch + 1, self.num_epoch + 1):
 
             for batch, data in enumerate(loader_train, 0):
@@ -118,21 +120,16 @@ class PriorTrainer:
                 def should(freq):
                     return freq > 0 and (batch % freq == 0 or batch == num_batch_train)
 
-                # Pre-training step
                 model.train()
 
-                # When optimizer = optim.Optimizer(net.parameters()) we only zero the optim's grads
                 optimizer.zero_grad()
 
-                input_img, target_img = data
+                input_stack, target_img = data
 
-                #plot_intensity_line_distribution(input_img, 'input')
+                input_stack = input_stack.to(self.device)
+                target_img = target_img.to(self.device)
 
-                #plot_intensity_line_distribution(target_img, 'target')
-
-                output_img = model(input_img)
-
-                #plot_intensity_line_distribution(output_img, 'output')
+                output_img = model(input_stack)
 
                 loss = criterion(output_img, target_img)
                 loss.backward()
@@ -144,12 +141,11 @@ class PriorTrainer:
 
                 if should(self.num_freq_disp):
 
-                    # Convert tensors to numpy arrays
-                    input_img_np = transform_inv_train(input_img)
+                    input_stack_np = transform_inv_train(input_stack)
                     target_img_np = transform_inv_train(target_img)
                     output_img_np = transform_inv_train(output_img)
 
-                    num_frames = input_img_np.shape[-1]
+                    num_frames = input_stack_np.shape[-1]
 
                     for j in range(target_img_np.shape[0]):  # Iterate through each item in the batch
                         # Define a base filename that includes epoch, batch, and sample index
@@ -158,7 +154,7 @@ class PriorTrainer:
                         # Save each input frame
                         for frame_idx in range(num_frames):
                             input_frame_filename = os.path.join(self.prior_train_dir, f"{base_filename}_input_frame{frame_idx}.png")
-                            plt.imsave(input_frame_filename, input_img_np[j, :, :, frame_idx], cmap='gray')
+                            plt.imsave(input_frame_filename, input_stack_np[j, :, :, frame_idx], cmap='gray')
 
                         # Save the target and output images
                         target_filename = os.path.join(self.prior_train_dir, f"{base_filename}_target.png")
@@ -166,11 +162,6 @@ class PriorTrainer:
 
                         plt.imsave(target_filename, target_img_np[j, :, :, 0], cmap='gray')
                         plt.imsave(output_filename, output_img_np[j, :, :, 0], cmap='gray')
-
-                        # Optionally, print or log the file paths to verify
-                        # print(f"Saved input frames to: {input_frame_filename}")
-                        # print(f"Saved target to: {target_filename}")
-                        # print(f"Saved output to: {output_filename}")
 
             if (epoch % self.num_freq_save) == 0:
                 self.save(self.checkpoints_dir, model, optimizer, epoch)

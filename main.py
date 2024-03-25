@@ -50,16 +50,31 @@ def main():
 
     # Check if the script is running on the server by looking for the environment variable
     if os.getenv('RUNNING_ON_SERVER') == 'true':
-        # Set up argument parsing
+
         parser = argparse.ArgumentParser(description='Process data directory.')
+
         parser.add_argument('--data_dir', type=str, help='Path to the data directory')
+        parser.add_argument('--project_name', type=str, help='Name of the project')
+        parser.add_argument('--train_continue', type=str, default='off', choices=['on', 'off'],
+                            help='Flag to continue training: "on" or "off" (default: "off")')
+        parser.add_argument('--load_epoch', type=int, default=1, 
+                            help='Epoch number from which to continue training (default: 1)')
+    
 
         # Parse arguments
         args = parser.parse_args()
 
         # Now you can use args.data_dir as the path to your data
         data_dir = args.data_dir
+        project_name = args.project_name 
+        train_continue = args.train_continue
+        load_epoch = args.load_epoch
+        project_dir = os.path.join('/g', 'prevedel', 'members', 'Rauscher', 'projects', 'adaptive_FastDVDNet')
+
         print(f"Using data directory: {data_dir}")
+        print(f"Project name: {project_name}")
+        print(f"Train continue: {train_continue}")
+        print(f"Load epoch: {load_epoch}")
     else:
         # If not running on the server, perhaps use a default data_dir or handle differently
         data_dir = os.path.join('C:\\', 'Users', 'rausc', 'Documents', 'EMBL', 'data', 'only_two_dataset')
